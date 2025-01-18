@@ -159,29 +159,23 @@ class AccountMove(models.Model):
         """
         Override the action_post method to create the CFDI
         """
-
-        res = super().action_post()
-
-        for move in self:
-            # Create the CFDIs if required
+        for rec in self:
+            res = super(AccountMove, rec).action_post()
             if (
-                move.l10n_mx_cfdi_auto
-                and move.move_type == "out_invoice"
-                and move.cfdi_required
-                and move.cfdi_document_id.state != "published"
+                rec.l10n_mx_cfdi_auto
+                and rec.move_type == "out_invoice"
+                and rec.cfdi_required
+                and rec.cfdi_document_id.state != "published"
             ):
-                move.create_invoice_cfdi()
-
-        return res
+                rec.create_invoice_cfdi()
+            return res
 
     def create_invoice_cfdi(self):
         """
         Create the CFDI
         """
         self.ensure_one()
-
         self._validate_invoice_cfdi_required_fields()
-
         cert = self.env["l10n_mx_cfdi.document"].create(
             {
                 "type": "I",
@@ -190,17 +184,14 @@ class AccountMove(models.Model):
                 "related_invoice_id": self.id,
             }
         )
-
         try:
             cfdi_data = self._gather_invoice_cfdi_data()
             cert.publish(cfdi_data)
-
             self.update(
                 {
                     "related_cert_ids": [(4, cert.id)],
                 }
             )
-
         except Exception as e:
             cert.unlink()
             raise e
@@ -257,9 +248,7 @@ class AccountMove(models.Model):
             },
             "Items": self.gather_invoice_cfdi_items_data(),
         }
-
         self._add_global_information_to_cfdi_if_required(cfdi_data)
-
         return cfdi_data
 
     def _format_cfdi_date_str(self, document_date):
